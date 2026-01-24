@@ -17,10 +17,12 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+set(USB_VID 0x2E8A)
+set(USB_PID 0x10FE)
+
 if(ESP_PLATFORM)
-set(DEBUG_APDU 1)
 set(DENABLE_POWER_ON_RESET 0)
-set(EXTRA_COMPONENT_DIRS src/fido2 pico-keys-sdk/src)
+set(EXTRA_COMPONENT_DIRS pico-keys-sdk/config/esp32/components src/fido2)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 else()
 
@@ -76,7 +78,7 @@ set(USB_ITF_HID 1)
 include(pico-keys-sdk/pico_keys_sdk_import.cmake)
 
 if(NOT ESP_PLATFORM)
-    set(SOURCES ${PICO_KEYS_SOURCES})
+    set(SOURCES ${PICO_KEYS_SOURCES} ${CBOR_SOURCES} ${MBEDTLS_SOURCES})
 endif()
 
 set(SOURCES ${SOURCES}
@@ -132,7 +134,7 @@ set(SOURCES ${SOURCES}
         )
 endif()
 
-SET_VERSION(ver_major ver_minor "${CMAKE_CURRENT_LIST_DIR}/pico-fido/src/fido/version.h" 1)
+SET_VERSION(ver_major ver_minor "${CMAKE_CURRENT_LIST_DIR}/pico-fido/src/fido/version.h" 2)
 if(ESP_PLATFORM)
     project(pico_fido2)
 endif()
@@ -173,12 +175,18 @@ if(ENABLE_EMULATION)
     target_link_options(pico_fido2 PUBLIC
             -Wl,-dead_strip
             )
+        if(DEBUG_APDU)
+            target_compile_options(pico_fido PUBLIC
+            -fsanitize=address -g -O1 -fno-omit-frame-pointer)
+            target_link_options(pico_fido PUBLIC
+            -fsanitize=address -g -O1 -fno-omit-frame-pointer)
+        endif()
     else()
     target_link_options(pico_fido2 PUBLIC
             -Wl,--gc-sections
             )
     endif (APPLE)
-    target_link_libraries(pico_fido2 PRIVATE pthread m)
+    target_link_libraries(pico_fido2 PRIVATE pico_keys_sdk mbedtls pthread m)
 else()
 target_link_libraries(pico_fido2 PRIVATE pico_keys_sdk pico_stdlib pico_multicore hardware_flash hardware_sync hardware_adc pico_unique_id pico_aon_timer tinyusb_device tinyusb_board)
 pico_add_extra_outputs(${CMAKE_PROJECT_NAME})
