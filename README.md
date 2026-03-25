@@ -1,174 +1,256 @@
-# Pico FIDO2
+# tdongle-yk
 
-This project transforms your Raspberry Pi Pico or ESP32 microcontroller into an integrated FIDO Passkey **and** OpenPGP smartcard, functioning like a standard USB Passkey for authentication and as a smartcard for cryptographic operations.
+`tdongle-yk` is a LilyGO T-Dongle S3 focused fork of `pico-fido2` / `pico-openpgp`.
 
----
+The goal of this fork is simple:
 
-## Features
+- run `FIDO2`, `OTP`, `OATH`, `OpenPGP` and `PIV` on the `LilyGO T-Dongle S3`
+- expose a `YubiKey 5` compatible USB identity for better Windows / Yubico tool compatibility
+- make the board usable as a compact USB security token with native support for its button, RGB LED and display power behavior
+- provide working helper scripts for build, flash and Windows PIV / BitLocker import workflows
 
-Pico FIDO2 includes the following features:
+This is not an official Yubico product.
 
-### FIDO2 / U2F / WebAuthn
+## Recommended GitHub Naming
 
-- CTAP 2.1 / CTAP 1
-- WebAuthn
-- U2F
-- HMAC-Secret extension
-- CredProtect extension
-- User presence enforcement through physical button
-- User verification with PIN
-- Discoverable credentials (resident keys)
-- Credential management
-- ECDSA and EDDSA authentication
-- Support for SECP256R1, SECP384R1, SECP521R1, SECP256K1 and Ed25519 curves
-- App registration and login
-- Device selection
-- Support for vendor configuration
-- Backup with 24 words
-- Secure lock to protect the device from flash dumps
-- Permissions support (MC, GA, CM, ACFG, LBW)
-- Authenticator configuration
-- minPinLength extension
-- Self attestation
-- Enterprise attestation
-- credBlobs extension
-- largeBlobKey extension
-- Large blobs support (2048 bytes max)
-- OATH (based on YKOATH protocol specification)
-- TOTP / HOTP
-- Yubikey One Time Password
-- Challenge-response generation
-- Emulated keyboard interface
-- Button press generates an OTP that is directly typed
-- Yubico YKMAN compatible
-- Nitrokey nitropy and nitroapp compatible
-- Secure Boot and Secure Lock in RP2350 and ESP32-S3 MCUs
-- One Time Programming to store the master key that encrypts all resident keys and seeds.
-- Rescue interface to allow recovery of the device if it becomes unresponsive or undetectable.
-- LED customization with Pico Commissioner.
+Recommended repository name:
 
-### OpenPGP Smartcard
+- `tdongle-yk`
 
-- OpenPGP card specification v3.4
-- 3 key slots (Signature, Encryption, Authentication)
-- RSA (2048, 3072, 4096), Ed25519, Curve25519, ECDSA (NIST P-256, P-384, P-521)
-- Key generation on device
-- Key import/export
-- PIN and Admin PIN protection
-- Reset and Unblock functions
-- Works with GnuPG, SSH, S/MIME, and compatible tools
-- CCID over USB
-- Compatible with major OS (Linux, Windows, macOS)
-- Touch button for user presence confirmation (optional)
-- Open source
+Suggested GitHub description:
 
----
+- `LilyGO T-Dongle S3 fork of pico-fido2 with YubiKey-compatible USB identity, Windows PIV fixes, and helper scripts for flashing and BitLocker workflows.`
 
-## Security Considerations
+Suggested GitHub topics:
 
-Microcontrollers RP2350 and ESP32-S3 are designed to support secure environments when Secure Boot is enabled, and optionally, Secure Lock. These features allow a master key encryption key (MKEK) to be stored in a one-time programmable (OTP) memory region, which is inaccessible from outside secure code. This master key is then used to encrypt all private and secret keys on the device, protecting sensitive data from potential flash memory dumps.
+- `esp32s3`
+- `lilygo`
+- `tdongle`
+- `fido2`
+- `webauthn`
+- `openpgp`
+- `piv`
+- `smartcard`
+- `bitlocker`
+- `yubikey`
+- `esp-idf`
 
-**However**, the RP2040 microcontroller lacks this level of security hardware, meaning that it cannot provide the same protection. Data stored on its flash memory, including private or master keys, can be easily accessed or dumped, as encryption of the master key itself is not feasible. Consequently, if an RP2040 device is stolen, any stored private or secret keys may be exposed.
+## What This Fork Adds
 
----
+- Native `LilyGO T-Dongle S3` board support
+- `ESP32-S3` board selection via `PICO_FIDO_ESP_BOARD=tdongle-s3`
+- Native button mapping for FIDO user presence on `GPIO 0`
+- `APA102` RGB LED support using the T-Dongle S3 pins
+- Safe ST7735 display sleep handling so the display does not stay white and powered
+- A stable `Yubikey5` build profile for Windows smartcard tooling
+- Windows-focused PIV fixes for:
+  - `SELECT PIV`
+  - `GET METADATA`
+  - certificate reads
+  - Microsoft smartcard container mapping
+  - `CHUID` and `CCC` object population
+- Helper scripts for:
+  - full erase + flash
+  - PKCS#12 import into PIV
+  - generating a BitLocker-compatible self-signed PFX
 
-## Download
+## Hardware Target
 
-**If you own an ESP32-S3 board, go to ESP32 Flasher for flashing your Pico FIDO2.**
+Board: `LilyGO T-Dongle S3`
 
-If you own a Raspberry Pico (RP2040 or RP2350), go to the Download page, select your vendor and model and download the proper firmware; or go to the Release page and download the UF2 file for your board.
+### Pinout
 
-Note that UF2 files are shipped with a dummy VID/PID to avoid license issues (FEFF:FCFD). If you plan to use it with other proprietary tools, you should modify Info.plist of CCID driver to add these VID/PID or use the Pico Commissioner.
+| Function | Pin |
+| --- | --- |
+| User button | `GPIO 0` |
+| APA102 data | `GPIO 40` |
+| APA102 clock | `GPIO 39` |
+| ST7735 MOSI | `GPIO 3` |
+| ST7735 SCK | `GPIO 5` |
+| ST7735 CS | `GPIO 4` |
+| ST7735 DC | `GPIO 2` |
+| ST7735 backlight | `GPIO 38` |
 
-You can use whatever VID/PID (i.e., 234b:0000 from FISJ), but remember that you are not authorized to distribute the binary with a VID/PID that you do not own.
+### Board-specific behavior
 
-Note that the pure-browser option Pico Commissioner is the most recommended.
+- The boot button is used as the `FIDO user presence` button.
+- The RGB LED is configured as an `APA102` device.
+- The ST7735 display is put into `Sleep In (0x10)` and its backlight is driven low during init to avoid a permanently lit white screen.
 
----
+Implementation file: `src/fido2/board_tdongle.c`
 
-## Build for Raspberry Pico
+## Repository Layout
 
-Before building, ensure you have installed the toolchain for the Pico and that the Pico SDK is properly located on your drive.
+- `src/fido2/board_tdongle.c`
+  - LilyGO T-Dongle S3 hardware support
+- `tools/flash_clean_yk5.cmd`
+  - full chip erase + flash of the YubiKey-compatible build
+- `tools/flash_clean_recovery.cmd`
+  - full chip erase + flash of the known-good recovery build
+- `tools/import_piv_pkcs12.py`
+  - direct PKCS#12 import into the PIV applet
+  - writes certificate, `CHUID`, `CCC`, `MSCMAP`, and `MSROOTS`
+- `tools/new_bitlocker_pfx.ps1`
+  - generates a self-signed PFX with the BitLocker EKU
 
+## Build
+
+This fork is primarily documented for `Windows + ESP-IDF + ESP32-S3`.
+
+### Prerequisites
+
+- `ESP-IDF 5.5.x`
+- Python available for `idf.py` and `esptool`
+- Git submodules initialized
+
+### Example build on Windows
+
+```powershell
+$env:PATH='C:\Users\rapha\AppData\Local\Programs\Python\Python311;' + $env:PATH
+. 'C:\Espressif\frameworks\esp-idf-v5.5.3\export.ps1'
+python "$env:IDF_PATH\tools\idf.py" -B build-tdongle-yk5 -DPICO_FIDO_ESP_BOARD=tdongle-s3 -DVIDPID=Yubikey5 build
 ```
-git clone https://github.com/youruser/pico-fido2
-git submodule update --init --recursive
-cd pico-fido2
-mkdir build
-cd build
-PICO_SDK_PATH=/path/to/pico-sdk cmake .. -DPICO_BOARD=board_type -DUSB_VID=0x1234 -DUSB_PID=0x5678
-make
-```
 
-Note that `PICO_BOARD`, `USB_VID` and `USB_PID` are optional. If not provided, `pico` board and VID/PID `FEFF:FCFD` will be used.
+Important build options:
 
-Additionally, you can pass the `VIDPID=value` parameter to build the firmware with a known VID/PID. The supported values are:
+- `-DPICO_FIDO_ESP_BOARD=tdongle-s3`
+- `-DVIDPID=Yubikey5`
 
-- `NitroHSM`
-- `NitroFIDO2`
-- `NitroStart`
-- `NitroPro`
-- `Nitro3`
+Current supported ESP board values:
+
+- `generic`
+- `tdongle-s3`
+
+Current supported `VIDPID` presets include:
+
 - `Yubikey5`
 - `YubikeyNeo`
-- `YubiHSM`
+- `NitroFIDO2`
 - `Gnuk`
 - `GnuPG`
 
-After running `make`, the binary file `pico_fido2.uf2` will be generated. To load this onto your Pico board:
+## Flashing
 
-1. Put the Pico board into loading mode by holding the `BOOTSEL` button while plugging it in.
-2. Copy the `pico_fido2.uf2` file to the new USB mass storage device that appears.
-3. Once the file is copied, the Pico mass storage device will automatically disconnect, and the Pico board will reset with the new firmware.
-4. A blinking LED will indicate that the device is ready to work.
+Both flash helper scripts always do a `full erase` first.
 
-## Driver
+### Flash the YubiKey-compatible build
 
-Pico FIDO2 uses the `HID` driver for FIDO and `CCID` for OpenPGP, both present in all major operating systems. It should be detected by all OS and browser/applications just like normal USB FIDO keys and smartcards.
+```cmd
+tools\flash_clean_yk5.cmd COM5
+```
 
-## License and Commercial Use
+### Flash the recovery build
 
-This project is available under two editions:
+```cmd
+tools\flash_clean_recovery.cmd COM5
+```
 
-**Community Edition (FOSS)**
-- Released under the GNU Affero General Public License v3 (AGPLv3).
-- You are free to study, modify, and run the code, including for internal evaluation.
-- If you distribute modified binaries/firmware, OR if you run a modified version of this project as a network-accessible service, you must provide the corresponding source code to the users of that binary or service, as required by AGPLv3.
-- No warranty. No SLA. No guaranteed support.
+If the board is not detected:
 
-**Enterprise / Commercial Edition**
-- Proprietary license for organizations that want to:
-  - run this in production with multiple users/devices,
-  - integrate it into their own product/appliance,
-  - enforce corporate policies (PIN policy, admin/user roles, revocation),
-  - deploy it as an internal virtualized / cloud-style service,
-  - and *not* be required to publish derivative source code.
-- Base package includes:
-  - commercial license (no AGPLv3 disclosure obligation for your modifications / integration)
-  - onboarding call
-  - access to officially signed builds
-- Optional / on-demand enterprise components that can be added case-by-case:
-  - ability to operate in multi-user / multi-device environments
-  - device inventory, traceability and secure revocation/offboarding
-  - custom attestation, per-organization device identity / anti-cloning
-  - virtualization / internal "HSM or auth backend" service for multiple teams or tenants
-  - post-quantum (PQC) key material handling and secure PQC credential storage
-  - hierarchical deterministic key derivation (HD wallet–style key trees for per-user / per-tenant keys, firmware signing trees, etc.)
-  - cryptographically signed audit trail / tamper-evident logging
-  - dual-control / two-person approval for high-risk operations
-  - secure key escrow / disaster recovery strategy
-  - release-signing / supply-chain hardening toolchain
-  - policy-locked hardened mode ("FIPS-style profile")
-  - priority security-response SLA
-  - white-label demo / pre-sales bundle
+1. Hold the `BOOT` button while plugging in the dongle.
+2. Run the flash script again.
+3. Unplug / replug after flashing.
 
-Typical licensing models:
-- Internal use (single legal entity, including internal private cloud / virtualized deployments).
-- OEM / Redistribution / Service (ship in your product OR offer it as a service to third parties).
+## Windows PIV Workflow
 
-These options are scoped and priced individually depending on which components you actually need.
+This fork includes a direct PIV import workflow for Windows.
 
-For commercial licensing and enterprise features, email pol@henarejos.me
-Subject: `ENTERPRISE LICENSE <your company name>`
+### Import a PKCS#12 bundle into slot `9A`
 
-See `ENTERPRISE.md` for details.
+```cmd
+python tools\import_piv_pkcs12.py -i C:\bitlocker.pfx -p DeinPasswort -s 9a --auth-mode off --reader "Yubico"
+```
+
+The import script writes:
+
+- private key into the PIV slot
+- X.509 certificate object
+- `CHUID` (`0x5FC102`)
+- `CCC` / capability container (`0x5FC107`)
+- Microsoft smartcard mapping object (`0x5FFF10`)
+- Microsoft roots object (`0x5FFF11`)
+
+### Verify the PIV smartcard stack
+
+```cmd
+python tools\import_piv_pkcs12.py --reader "Yubico" --connect-only
+python tools\import_piv_pkcs12.py --reader "Yubico" --select-only
+python tools\import_piv_pkcs12.py --reader "Yubico" -s 9a --read-metadata
+python tools\import_piv_pkcs12.py --reader "Yubico" -s 9a --read-cert
+certutil -scinfo
+```
+
+For a full Windows and BitLocker walkthrough, see:
+
+- [docs/WINDOWS-PIV-BITLOCKER.md](docs/WINDOWS-PIV-BITLOCKER.md)
+
+## BitLocker Notes
+
+This repository now supports a working Windows smartcard / PIV path for BitLocker certificate handling.
+
+Important caveats:
+
+- Smartcard certificate protectors are for `fixed data drives` and `removable data drives`.
+- Native Windows `smartcard login` for a `local standalone account` is not supported by this repository alone.
+- For `BitLocker`, you need a certificate profile that matches the BitLocker EKU requirements.
+
+Helper for generating a compatible test certificate:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File tools\new_bitlocker_pfx.ps1 -PfxPath C:\bitlocker-bitlocker-oid.pfx -Password DeinPasswort
+```
+
+## Known Scope
+
+This fork is focused on:
+
+- `LilyGO T-Dongle S3`
+- `ESP32-S3`
+- `Windows` smartcard compatibility
+- `PIV` stability and helper tooling
+
+It is not intended to be a polished generic multi-board distribution.
+
+## Upstream Attribution
+
+This repository is based on:
+
+- `pico-fido2`
+- `pico-openpgp`
+- `pico-keys-sdk`
+
+Please keep upstream attribution intact when redistributing the fork.
+
+## Submodules
+
+This repository currently keeps the upstream components as submodules:
+
+- `pico-fido`
+- `pico-openpgp`
+- `pico-keys-sdk`
+
+The `.gitmodules` file is configured with relative URLs:
+
+- `../pico-fido.git`
+- `../pico-openpgp.git`
+- `../pico-keys-sdk.git`
+
+That means the cleanest GitHub layout is:
+
+- top-level repo: `tdongle-yk`
+- sibling repos in the same GitHub account or organization:
+  - `pico-fido`
+  - `pico-openpgp`
+  - `pico-keys-sdk`
+
+If you want to publish this fork as a working project, push the modified submodule repositories first, then push the top-level repository.
+
+Publishing notes:
+
+- [docs/PUBLISHING.md](docs/PUBLISHING.md)
+
+## License
+
+This fork inherits the licensing model of the upstream project and its subcomponents.
+
+Review the upstream license files before redistributing binaries, modified firmware, or downstream forks.

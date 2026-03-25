@@ -17,8 +17,20 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-set(USB_VID 0x2E8A)
-set(USB_PID 0x10FE)
+set(USB_VID "0x2E8A" CACHE STRING "USB vendor ID")
+set(USB_PID "0x10FE" CACHE STRING "USB product ID")
+set(VIDPID "None" CACHE STRING "Set specific VID/PID from a known platform")
+set_property(CACHE VIDPID PROPERTY STRINGS None NitroHSM NitroFIDO2 NitroStart NitroPro Nitro3 Yubikey5 YubikeyNeo YubiHSM Gnuk GnuPG)
+set(PICO_FIDO_ESP_BOARD "generic" CACHE STRING "ESP32 board support package")
+set_property(CACHE PICO_FIDO_ESP_BOARD PROPERTY STRINGS generic tdongle-s3)
+
+if(ESP_PLATFORM AND PICO_FIDO_ESP_BOARD STREQUAL "tdongle-s3")
+    add_definitions(-DPICO_BOARD_TDONGLE_S3=1)
+    set(PICO_FIDO_BOARD_SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/fido2/board_tdongle.c)
+    message(STATUS "ESP board support:\t\t tdongle-s3")
+else()
+    message(STATUS "ESP board support:\t\t generic")
+endif()
 
 if(ESP_PLATFORM)
 set(DENABLE_POWER_ON_RESET 0)
@@ -82,6 +94,7 @@ if(NOT ESP_PLATFORM)
 endif()
 
 set(SOURCES ${SOURCES}
+        ${PICO_FIDO_BOARD_SOURCES}
         ${CMAKE_CURRENT_LIST_DIR}/src/fido2/files.c
         ${CMAKE_CURRENT_LIST_DIR}/pico-fido/src/fido/fido.c
         ${CMAKE_CURRENT_LIST_DIR}/pico-fido/src/fido/kek.c
