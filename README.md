@@ -11,30 +11,6 @@ The goal of this fork is simple:
 
 This is not an official Yubico product.
 
-## Recommended GitHub Naming
-
-Recommended repository name:
-
-- `tdongle-yk`
-
-Suggested GitHub description:
-
-- `LilyGO T-Dongle S3 fork of pico-fido2 with YubiKey-compatible USB identity, Windows PIV fixes, and helper scripts for flashing and BitLocker workflows.`
-
-Suggested GitHub topics:
-
-- `esp32s3`
-- `lilygo`
-- `tdongle`
-- `fido2`
-- `webauthn`
-- `openpgp`
-- `piv`
-- `smartcard`
-- `bitlocker`
-- `yubikey`
-- `esp-idf`
-
 ## What This Fork Adds
 
 - Native `LilyGO T-Dongle S3` board support
