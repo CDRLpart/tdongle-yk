@@ -1,3 +1,14 @@
+
+## Support
+
+Support me via monero please if you like this project:
+
+![1000110279](https://github.com/user-attachments/assets/cde7178c-9241-4efb-abd5-005288bd960d)
+
+
+monero:42eQ1sZtR1USUcGRwc4hiTLNvL7q8U9XSCVVtuhRFKKREpevd4F1X3aN8X4UzkqNTy3n4BsfUooLvj1ydjpem5Ee9SRA2dZ
+
+
 # tdongle-yk
 
 `tdongle-yk` is a LilyGO T-Dongle S3 focused fork of `pico-fido2` / `pico-openpgp`.
@@ -29,6 +40,7 @@ This is not an official Yubico product.
   - full erase + flash
   - PKCS#12 import into PIV
   - generating a BitLocker-compatible self-signed PFX
+
 
 ## Hardware Target
 
